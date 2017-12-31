@@ -13,29 +13,17 @@ parser.add_argument('img_file', help='4d nifti file path')
 parser.add_argument('tsv_file', help='tsv file containing nuisance regressors to be removed!')
 parser.add_argument('out_path', help='output directory for saving new data file')
 parser.add_argument('--col_names', help='which columns of TSV file to include as nuisance regressors. defaults to all.', nargs="+")
-# can index dataframe using list of strings
 
 args = parser.parse_args()
-
-# img_file = sys.argv[0]
-# tsv_file = sys.argv[1]
 
 nii_ext = '.nii.gz'
 tsv_ext= '.tsv'
 
 # get files
-# data_dir = pjoin(os.environ['HOME'], 'Documents', 'sample_data')
-# img_file = glob(pjoin(data_dir, '*' + nii_ext))
-# tsv_file = glob(pjoin(data_dir, '*' + tsv_ext))
-
 img_file = args.img_file
 tsv_file = args.tsv_file
 data_dir = args.out_path
 
-# assert(len(img_file)==1)
-# assert(len(tsv_file)==1)
-# img_file = img_file[0]
-# tsv_file = tsv_file[0]
 base_file = os.path.basename(img_file)
 save_img_file = pjoin(data_dir, base_file[0:base_file.find('.')] + \
                       '_NR' + nii_ext)
@@ -45,13 +33,11 @@ img = nb.load(img_file)
 data = img.get_data()
 df = pandas.read_csv(tsv_file, '\t', na_values='n/a')
 
-# # remove columns with missing values
-# df.dropna(axis=1, inplace=True)
-
 Ntrs = df.as_matrix().shape[0]
 print('# of TRs: ' + str(Ntrs))
 assert(Ntrs==data.shape[len(data.shape)-1])
 
+# select columns to use as nuisance regressors
 if args.col_names:
     df = df[args.col_names]
 
