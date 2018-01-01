@@ -5,3 +5,4 @@ pandas
 nilearn
 matplotlib
 scipy
+sklearn
