@@ -56,34 +56,34 @@ jobs:
 
       # run tests!
       - run:
-          name: Smoke test: print help
+          name: Smoke test - print help
           command: |
             . venv/bin/activate
             ./run_denoise.py --help
 
       - run:
-          name: Smoke test: basic denoising
+          name: Smoke test - basic denoising
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/basic
             ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/basic
 
       - run:
-          name: Smoke test: select subsest of columns
+          name: Smoke test - select subsest of columns
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/subset
             ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --col_names FramewiseDisplacement GlobalSignal
 
       - run:
-          name: Smoke test: high pass
+          name: Smoke test - high pass
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/hp
             ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --hp_filter 0.009
 
       - run:
-          name: Smoke test: low pass
+          name: Smoke test - low pass
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/lp
