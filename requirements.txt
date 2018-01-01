@@ -6,3 +6,4 @@ nilearn
 matplotlib
 scipy
 sklearn
+patsy
