@@ -29,7 +29,7 @@ jobs:
 
 
       - run:
-          name: install dependencies
+          name: Install dependencies
           command: |
             python3 -m venv venv
             . venv/bin/activate
@@ -45,7 +45,7 @@ jobs:
           - test-data
 
       - run:
-          name: download test data
+          name: Download test data
           command: |
             bash .circleci/test_data_downloader.sh
 
@@ -56,17 +56,38 @@ jobs:
 
       # run tests!
       - run:
-          name: print help
+          name: Smoke test: print help
           command: |
             . venv/bin/activate
             ./run_denoise.py --help
 
       - run:
-          name: simple denoising
+          name: Smoke test: basic denoising
           command: |
             . venv/bin/activate
-            mkdir test_outputs
-            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/
+            mkdir -p test_outputs/basic
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/basic
+
+      - run:
+          name: Smoke test: select subsest of columns
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/subset
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --col_names FramewiseDisplacement GlobalSignal
+
+      - run:
+          name: Smoke test: high pass
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/hp
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --hp_filter 0.009
+
+      - run:
+          name: Smoke test: low pass
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/lp
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --lp_filter 0.1
 
       - store_artifacts:
           path: test_outputs
