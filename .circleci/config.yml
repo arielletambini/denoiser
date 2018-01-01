@@ -56,10 +56,17 @@ jobs:
 
       # run tests!
       - run:
-          name: run tests
+          name: print help
           command: |
             . venv/bin/activate
-            python run_denoise.py --help
+            ./run_denoise.py --help
+
+      - run:
+          name: simple denoising
+          command: |
+            . venv/bin/activate
+            mkdir test_outputs
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/
 
       - store_artifacts:
           path: test-reports
