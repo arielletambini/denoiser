@@ -73,21 +73,21 @@ jobs:
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/subset
-            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --col_names FramewiseDisplacement GlobalSignal
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/subset --col_names FramewiseDisplacement GlobalSignal
 
       - run:
           name: Smoke test - high pass
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/hp
-            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --hp_filter 0.009
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/hp --hp_filter 0.009
 
       - run:
           name: Smoke test - low pass
           command: |
             . venv/bin/activate
             mkdir -p test_outputs/lp
-            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/ --lp_filter 0.1
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/lp --lp_filter 0.1
 
       - store_artifacts:
           path: test_outputs
