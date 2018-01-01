@@ -27,6 +27,7 @@ jobs:
           # fallback to using the latest cache if no exact match is found
           - v1-dependencies-
 
+
       - run:
           name: install dependencies
           command: |
@@ -39,10 +40,19 @@ jobs:
             - ./venv
           key: v1-dependencies-{{ checksum "requirements.txt" }}
 
+      - restore_cache:
+          keys:
+          - test-data
+
       - run:
           name: download test data
           command: |
             bash .circleci/test_data_downloader.sh
+
+      - save_cache:
+          paths:
+            - ./test_data
+          key: test-data
 
       # run tests!
       - run:
