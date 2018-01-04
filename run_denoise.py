@@ -72,6 +72,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     TR = img.header.get_zooms()[-1]
     frame_times = np.arange(Ntrs) * TR
     if hp_filter:
+        assert(hp_filter > 0)
         period_cutoff = 1. / float(hp_filter)
         df = make_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
                                 add_reg_names=df.columns.tolist())
@@ -92,6 +93,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     # setup and run regression
     model = regression.OLSModel(dm)
     results = model.fit(data.T)
+    if not hp_filter:
+        results_orig_resid = copy.deepcopy(results.resid) # save for rsquared computation
 
     # apply low-pass filter
     if lp_filter:
@@ -132,13 +135,24 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         # compute sse - borrowed from matlab
         sse = np.square(np.linalg.norm(results_second.resid, axis=0))
 
-        # compute rsquared
-        zero_idx = scipy.logical_and(sst==0, sse==0)
-        sse[zero_idx] = 1
-        sst[zero_idx] = 1 # would be NaNs - become rsquared = 0
-        rsquare = 1 - np.true_divide(sse, sst)
-        rsquare[np.isnan(rsquare)] = 0
         del results_second, model_second, results_first_resid
+
+    elif not hp_filter:
+        # compute sst - borrowed from matlab
+        sst = np.square(np.linalg.norm(data.T -
+                                       np.mean(data.T, axis=0), axis=0))
+
+        # compute sse - borrowed from matlab
+        sse = np.square(np.linalg.norm(results_orig_resid, axis=0))
+
+        del results_orig_resid
+
+    # compute rsquared of nuisance regressors
+    zero_idx = scipy.logical_and(sst == 0, sse == 0)
+    sse[zero_idx] = 1
+    sst[zero_idx] = 1  # would be NaNs - become rsquared = 0
+    rsquare = 1 - np.true_divide(sse, sst)
+    rsquare[np.isnan(rsquare)] = 0
 
     ######### Visualizing DM & outputs
     fontsize = 12
@@ -262,6 +276,5 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                                  title=title_str,
                                  cut_coords=7)
     fig.savefig(pjoin(out_figure_path, 'Rsquared' + png_append))
-    a=1
 
 denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
