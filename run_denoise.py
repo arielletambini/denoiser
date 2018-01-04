@@ -35,7 +35,7 @@ hp_filter = args.hp_filter
 lp_filter = args.lp_filter
 out_figure_path = args.out_figure_path
 
-def method_name(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_filter=False, out_figure_path=False):
+def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_filter=False, out_figure_path=False):
 
     nii_ext = '.nii.gz'
     FD_thr = [.5]
@@ -264,4 +264,4 @@ def method_name(img_file, tsv_file, out_path, col_names=False, hp_filter=False, 
     fig.savefig(pjoin(out_figure_path, 'Rsquared' + png_append))
     a=1
 
-method_name(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
+denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
