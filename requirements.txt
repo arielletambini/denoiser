@@ -7,3 +7,4 @@ matplotlib
 scipy
 sklearn
 patsy
+seaborn
