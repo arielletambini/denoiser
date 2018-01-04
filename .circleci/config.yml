@@ -1,0 +1,94 @@
+# Python CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+#
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version you desire here
+      # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
+      - image: circleci/python:3.6.1
+
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "requirements.txt" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+
+      - run:
+          name: Install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements.txt
+
+      - save_cache:
+          paths:
+            - ./venv
+          key: v1-dependencies-{{ checksum "requirements.txt" }}
+
+      - restore_cache:
+          keys:
+          - test-data
+
+      - run:
+          name: Download test data
+          command: |
+            bash .circleci/test_data_downloader.sh
+
+      - save_cache:
+          paths:
+            - ./test_data
+          key: test-data
+
+      # run tests!
+      - run:
+          name: Smoke test - print help
+          command: |
+            . venv/bin/activate
+            ./run_denoise.py --help
+
+      - run:
+          name: Smoke test - basic denoising
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/basic
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/basic
+
+      - run:
+          name: Smoke test - select subsest of columns
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/subset
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/subset --col_names FramewiseDisplacement GlobalSignal
+
+      - run:
+          name: Smoke test - high pass
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/hp
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/hp --hp_filter 0.009
+
+      - run:
+          name: Smoke test - low pass
+          command: |
+            . venv/bin/activate
+            mkdir -p test_outputs/lp
+            ./run_denoise.py test_data/sub-01_task-rhymejudgment_bold_space-MNI152NLin2009cAsym_preproc.nii.gz test_data/sub-01_task-rhymejudgment_bold_confounds.tsv test_outputs/lp --lp_filter 0.1
+
+      - store_artifacts:
+          path: test_outputs
+          destination: test_outputs
