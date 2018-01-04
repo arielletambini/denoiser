@@ -72,8 +72,9 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     TR = img.header.get_zooms()[-1]
     frame_times = np.arange(Ntrs) * TR
     if hp_filter:
+        hp_filter = float(hp_filter)
         assert(hp_filter > 0)
-        period_cutoff = 1. / float(hp_filter)
+        period_cutoff = 1. / hp_filter
         df = make_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
                                 add_reg_names=df.columns.tolist())
         # fn adds intercept into dm
@@ -181,6 +182,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_title('Nuisance Corr. Matrix', fontsize=fontsize_title)
     plt.tight_layout()
     fig.savefig(pjoin(out_figure_path, 'Corr_matrix_regressors' + png_append))
+    plt.close(fig)
     del fig, ax
 
     # DM of Nuisance Regressors (all)
@@ -193,6 +195,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_ylabel(tr_label, fontsize=fontsize)
     plt.tight_layout()
     fig.savefig(pjoin(out_figure_path, 'Design_matrix' + png_append))
+    plt.close(fig)
     del fig, ax
 
     # FD timeseries plot
@@ -238,6 +241,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     plt.tight_layout()
     axes[curr, 0].set_xlabel(tr_label)
     fig.savefig(pjoin(out_figure_path, FD + '_timeseries' + png_append))
+    plt.close(fig)
+    del fig, axes
 
     # Display T-stat maps for nuisance regressors
     # create mean img
@@ -266,6 +271,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                                          title=title_str,
                                          cut_coords=7)
             fig.savefig(pjoin(out_figure_path, t_png + col + png_append))
+            plt.close()
+            del fig
 
     # Display R-sq map for nuisance regressors
     m_img = nb.Nifti1Image(np.reshape(rsquare, img_size), img.affine)
@@ -276,5 +283,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                                  title=title_str,
                                  cut_coords=7)
     fig.savefig(pjoin(out_figure_path, 'Rsquared' + png_append))
+    plt.close()
+    del fig
 
 denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
