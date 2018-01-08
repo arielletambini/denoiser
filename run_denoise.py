@@ -186,8 +186,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_yticklabels(cm.columns.tolist(), rotation=-30, va='bottom', fontsize=fontsize)
     ax.set_title('Nuisance Corr. Matrix', fontsize=fontsize_title)
     plt.tight_layout()
-    file_corr_matrix = pjoin(out_figure_path, 'Corr_matrix_regressors' + png_append)
-    fig.savefig(file_corr_matrix)
+    file_corr_matrix = 'Corr_matrix_regressors' + png_append
+    fig.savefig(pjoin(out_figure_path, file_corr_matrix))
     plt.close(fig)
     del fig, ax
 
@@ -200,8 +200,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=fontsize)
     ax.set_ylabel(tr_label, fontsize=fontsize)
     plt.tight_layout()
-    file_design_matrix = pjoin(out_figure_path, 'Design_matrix' + png_append)
-    fig.savefig(file_design_matrix)
+    file_design_matrix = 'Design_matrix' + png_append
+    fig.savefig(pjoin(out_figure_path, file_design_matrix))
     plt.close(fig)
     del fig, ax
 
@@ -250,8 +250,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                 axes[curr, 0].set_xlim((-bound, Ntrs + 8))
         plt.tight_layout()
         axes[curr, 0].set_xlabel(tr_label)
-        file_fd_plot = pjoin(out_figure_path, FD + '_timeseries' + png_append)
-        fig.savefig(file_fd_plot)
+        file_fd_plot = FD + '_timeseries' + png_append
+        fig.savefig(pjoin(out_figure_path, file_fd_plot))
         plt.close(fig)
         del fig, axes
         print(FD + ' timeseries plot saved')
@@ -285,8 +285,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
             fig = plotting.plot_stat_map(m_img, mean_img, threshold=3, colorbar=True, display_mode='z', vmax=mx,
                                          title=title_str,
                                          cut_coords=7)
-            file_temp = pjoin(out_figure_path, t_png + col + png_append)
-            fig.savefig(file_temp)
+            file_temp = t_png + col + png_append
+            fig.savefig(pjoin(out_figure_path, file_temp))
             file_tstat.append({'name': col, 'file': file_temp})
             plt.close()
             del fig, file_temp
@@ -299,8 +299,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     fig = plotting.plot_stat_map(m_img, mean_img, threshold=.2, colorbar=True, display_mode='z', vmax=mx,
                                  title=title_str,
                                  cut_coords=7)
-    file_rsq_map = pjoin(out_figure_path, 'Rsquared' + png_append)
-    fig.savefig(file_rsq_map)
+    file_rsq_map = 'Rsquared' + png_append
+    fig.savefig(pjoin(out_figure_path, file_rsq_map))
     plt.close()
     del fig
     print(title_str + ' map saved')
