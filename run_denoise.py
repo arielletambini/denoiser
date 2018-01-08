@@ -56,10 +56,12 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     assert (Ntrs == data.shape[len(data.shape) - 1])
 
     # select columns to use as nuisance regressors
-    str_append = '  [ALL regressors in CSV]'
     if col_names:
         df = df[col_names]
         str_append = '  [SELECTED regressors in CSV]'
+    else:
+        col_names = df.columns.tolist()
+        str_append = '  [ALL regressors in CSV]'
 
     # fill in missing nuisance values with mean for that variable
     for col in df.columns:
