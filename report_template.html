@@ -33,7 +33,7 @@
 	<p style="margin-top:20px"> <strong style="background-color:Aqua;"> High-pass filter </strong> applied [frequencies < <strong>{{ hp_filter }}</strong> removed] </p>
 {% else %}
 	<p style="margin-top:20px"> <strong style="background-color:Yellow;"> ***NO additional high-pass filter applied*** </strong> </p>
-	<p style="margin-left:30px"> Note that if Nuisance regressors contain <strong> low-frequency DRIFT </strong> - it may be reintroducted into data!! </p>
+	<p style="margin-left:30px"> Note that if Nuisance regressors contain <strong> low-frequency DRIFT </strong> and if low-frequecy cosines were not included as Nuisance regressors - drift-like content will be present in 'cleaned' output data!! </p>
 {% endif %}
 
 {% if lp_filter %}
