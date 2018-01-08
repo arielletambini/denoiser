@@ -110,7 +110,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
             raise ValueError('Low pass filter cutoff if too close to the Nyquist frequency (%s)' % (Fs / 2))
 
         results.resid = butterworth(results.resid, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
-        print('Low-pass Filter Applied: < ' + low_pass)
+        print('Low-pass Filter Applied: < ' + str(low_pass))
 
     # add mean back into data
     clean_data = results.resid.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
