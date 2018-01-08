@@ -8,3 +8,4 @@ scipy
 sklearn
 patsy
 seaborn
+jinja2

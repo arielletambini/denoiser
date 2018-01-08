@@ -4,7 +4,7 @@ from nistats import reporting
 from nistats.design_matrix import make_design_matrix
 import nibabel as nb
 import numpy as np
-import os, pandas, sys, pdb, argparse, copy, scipy
+import os, pandas, sys, pdb, argparse, copy, scipy, jinja2
 from os.path import join as pjoin
 from nilearn import plotting
 from nilearn.signal import butterworth
@@ -42,15 +42,15 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     sc_range = np.arange(-1, 3)
     constant = 'constant'
 
-    # get file info
-    base_file = os.path.basename(img_file)
-    save_img_file = pjoin(out_path, base_file[0:base_file.find('.')] + \
-                          '_NR' + nii_ext)
-
     # read in files
     img = load_niimg(img_file)
+    # get file info
+    img_name = os.path.basename(img.get_filename())
+    save_img_file = pjoin(out_path, img_name[0:img_name.find('.')] + \
+                          '_NR' + nii_ext)
     data = img.get_data()
-    df = pandas.read_csv(tsv_file, '\t', na_values='n/a')
+    df_orig = pandas.read_csv(tsv_file, '\t', na_values='n/a')
+    df = copy.deepcopy(df_orig)
     Ntrs = df.as_matrix().shape[0]
     print('# of TRs: ' + str(Ntrs))
     assert (Ntrs == data.shape[len(data.shape) - 1])
@@ -84,6 +84,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     else:
         # add in intercept column into data frame
         df[constant] = 1
+        print('No High-pass Filter Applied')
+
     dm = df.as_matrix()
 
     # prep data
@@ -106,6 +108,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
             raise ValueError('Low pass filter cutoff if too close to the Nyquist frequency (%s)' % (Fs / 2))
 
         results.resid = butterworth(results.resid, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
+        print('Low-pass Filter Applied: < ' + low_pass)
 
     # add mean back into data
     clean_data = results.resid.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
@@ -163,8 +166,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     if not os.path.isdir(out_figure_path):
         os.mkdir(out_figure_path)
-    img_name = os.path.basename(img_file)
     png_append = '_' + img_name[0:img_name.find('.')] + '.png'
+    print('Output directory: ' + out_figure_path)
 
     # DM corr matrix
     cm = df[df.columns[0:-1]].corr()
@@ -181,7 +184,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_yticklabels(cm.columns.tolist(), rotation=-30, va='bottom', fontsize=fontsize)
     ax.set_title('Nuisance Corr. Matrix', fontsize=fontsize_title)
     plt.tight_layout()
-    fig.savefig(pjoin(out_figure_path, 'Corr_matrix_regressors' + png_append))
+    file_corr_matrix = pjoin(out_figure_path, 'Corr_matrix_regressors' + png_append)
+    fig.savefig(file_corr_matrix)
     plt.close(fig)
     del fig, ax
 
@@ -194,55 +198,65 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=fontsize)
     ax.set_ylabel(tr_label, fontsize=fontsize)
     plt.tight_layout()
-    fig.savefig(pjoin(out_figure_path, 'Design_matrix' + png_append))
+    file_design_matrix = pjoin(out_figure_path, 'Design_matrix' + png_append)
+    fig.savefig(file_design_matrix)
     plt.close(fig)
     del fig, ax
 
     # FD timeseries plot
     FD = 'FD'
     poss_names = ['FramewiseDisplacement', FD, 'framewisedisplacement', 'fd']
-    idx = [df.columns.__contains__(i) for i in poss_names]
-    FD_name = poss_names[idx == True]
-    y = df[FD_name].as_matrix()
-    Nremove = []
-    sc_idx = []
-    for thr_idx, thr in enumerate(FD_thr):
-        idx = y >= thr
-        sc_idx.append(copy.deepcopy(idx))
-        for iidx in np.where(idx)[0]:
-            for buffer in sc_range:
-                curr_idx = iidx + buffer
-                if curr_idx >= 0 and curr_idx <= len(idx):
-                    sc_idx[thr_idx][curr_idx] = True
-        Nremove.append(np.sum(sc_idx[thr_idx]))
+    fd_idx = [df_orig.columns.__contains__(i) for i in poss_names]
+    if np.sum(fd_idx) > 0:
+        FD_name = poss_names[fd_idx == True]
+        if sum(df_orig[FD_name].isnull()) > 0:
+            df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
+        y = df_orig[FD_name].as_matrix()
+        Nremove = []
+        sc_idx = []
+        for thr_idx, thr in enumerate(FD_thr):
+            idx = y >= thr
+            sc_idx.append(copy.deepcopy(idx))
+            for iidx in np.where(idx)[0]:
+                for buffer in sc_range:
+                    curr_idx = iidx + buffer
+                    if curr_idx >= 0 and curr_idx <= len(idx):
+                        sc_idx[thr_idx][curr_idx] = True
+            Nremove.append(np.sum(sc_idx[thr_idx]))
 
-    Nplots = len(FD_thr)
-    sns.set(font_scale=1.5)
-    sns.set_style('ticks')
-    fig, axes = plt.subplots(Nplots, 1, figsize=(12, 4), squeeze=False)
-    sns.despine()
-    bound = .4
-    for curr in np.arange(0, Nplots):
-        axes[curr, 0].plot(y)
-        axes[curr, 0].plot((-bound, Ntrs + bound), FD_thr[curr] * np.ones((1, 2))[0], '--', color='black')
-        axes[curr, 0].scatter(np.arange(0, Ntrs), y, s=20)
+        Nplots = len(FD_thr)
+        sns.set(font_scale=1.5)
+        sns.set_style('ticks')
+        fig, axes = plt.subplots(Nplots, 1, figsize=(12, 4), squeeze=False)
+        sns.despine()
+        bound = .4
+        for curr in np.arange(0, Nplots):
+            axes[curr, 0].plot(y)
+            axes[curr, 0].plot((-bound, Ntrs + bound), FD_thr[curr] * np.ones((1, 2))[0], '--', color='black')
+            axes[curr, 0].scatter(np.arange(0, Ntrs), y, s=20)
 
-        if Nremove[curr] > 0:
-            info = scipy.ndimage.measurements.label(sc_idx[curr])
-            for cluster in np.arange(1, info[1] + 1):
-                temp = np.where(info[0] == cluster)[0]
-                axes[curr, 0].axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
-            axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
-            axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
-                                    + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
-                                    str(FD_thr[curr]) + ')')
-            plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
-            axes[curr, 0].set_xlim((-bound, Ntrs + 8))
-    plt.tight_layout()
-    axes[curr, 0].set_xlabel(tr_label)
-    fig.savefig(pjoin(out_figure_path, FD + '_timeseries' + png_append))
-    plt.close(fig)
-    del fig, axes
+            if Nremove[curr] > 0:
+                info = scipy.ndimage.measurements.label(sc_idx[curr])
+                for cluster in np.arange(1, info[1] + 1):
+                    temp = np.where(info[0] == cluster)[0]
+                    axes[curr, 0].axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
+                axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
+                axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
+                                        + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
+                                        str(FD_thr[curr]) + ')')
+                plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
+                axes[curr, 0].set_xlim((-bound, Ntrs + 8))
+        plt.tight_layout()
+        axes[curr, 0].set_xlabel(tr_label)
+        file_fd_plot = pjoin(out_figure_path, FD + '_timeseries' + png_append)
+        fig.savefig(file_fd_plot)
+        plt.close(fig)
+        del fig, axes
+        print(FD + ' timeseries plot saved')
+
+    else:
+        print(FD + ' not found: ' + FD + ' timeseries not plotted')
+        file_fd_plot = None
 
     # Display T-stat maps for nuisance regressors
     # create mean img
@@ -257,33 +271,65 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
             mx.append(np.max(np.absolute([con.t.min(), con.t.max()])))
     mx = .8 * np.max(mx)
     t_png = 'Tstat_'
+    file_tstat = []
     for idx, col in enumerate(df.columns):
         if not 'drift' in col and not constant in col:
             con_vector = np.zeros((1, df.shape[1]))
             con_vector[0, idx] = 1
             con = results.Tcontrast(con_vector)
-            print(con_vector)
             m_img = nb.Nifti1Image(np.reshape(con, img_size), img.affine)
 
-            title_str = col + ' Tstat map '
-            print(title_str)
+            title_str = col + ' Tstat'
             fig = plotting.plot_stat_map(m_img, mean_img, threshold=3, colorbar=True, display_mode='z', vmax=mx,
                                          title=title_str,
                                          cut_coords=7)
-            fig.savefig(pjoin(out_figure_path, t_png + col + png_append))
+            file_temp = pjoin(out_figure_path, t_png + col + png_append)
+            fig.savefig(file_temp)
+            file_tstat.append({'name': col, 'file': file_temp})
             plt.close()
-            del fig
+            del fig, file_temp
+            print(title_str + ' map saved')
 
     # Display R-sq map for nuisance regressors
     m_img = nb.Nifti1Image(np.reshape(rsquare, img_size), img.affine)
-    title_str = 'Nuisance Rsq map '
-    print(title_str)
+    title_str = 'Nuisance Rsq'
     mx = .95 * rsquare.max()
     fig = plotting.plot_stat_map(m_img, mean_img, threshold=.2, colorbar=True, display_mode='z', vmax=mx,
                                  title=title_str,
                                  cut_coords=7)
-    fig.savefig(pjoin(out_figure_path, 'Rsquared' + png_append))
+    file_rsq_map = pjoin(out_figure_path, 'Rsquared' + png_append)
+    fig.savefig(file_rsq_map)
     plt.close()
     del fig
+    print(title_str + ' map saved')
+
+    templateLoader = jinja2.FileSystemLoader(searchpath="/")
+    templateEnv = jinja2.Environment(loader=templateLoader)
+
+    TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
+    template = templateEnv.get_template(TEMPLATE_FILE)
+
+    templateVars = {"img_file": img_file,
+                    "save_img_file": save_img_file,
+                    "Ntrs": Ntrs,
+                    "tsv_file": tsv_file,
+                    "col_names": col_names,
+                    "hp_filter": hp_filter,
+                    "lp_filter": lp_filter,
+                    "file_design_matrix": file_design_matrix,
+                    "file_corr_matrix": file_corr_matrix,
+                    "file_fd_plot": file_fd_plot,
+                    "file_rsq_map": file_rsq_map,
+                    "file_tstat": file_tstat
+                    }
+
+    outputText = template.render(templateVars)
+
+    html_file = pjoin(out_figure_path, img_name[0:img_name.find('.')] + '.html')
+    with open(html_file, "w") as f:
+        f.write(outputText)
+
+    print('')
+    print('HTML report: ' + html_file)
 
 denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
