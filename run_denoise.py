@@ -13,7 +13,9 @@ import pylab as plt
 import seaborn as sns
 from nilearn._utils.niimg import load_niimg
 
-parser = argparse.ArgumentParser(description='stuff')
+parser = argparse.ArgumentParser(description='Function for performing nuisance regression. Saves resulting output '
+                                             'nifti file, information about nuisance regressors and motion (html '
+                                             'report), and outputs nibabel object containing clean data')
 parser.add_argument('img_file', help='4d nifti img: file path or nibabel object loaded into memory')
 parser.add_argument('tsv_file', help='tsv file containing nuisance regressors to be removed')
 parser.add_argument('out_path', help='output directory for saving new data file')
@@ -163,6 +165,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ######### Visualizing DM & outputs
     fontsize = 12
     fontsize_title = 14
+    def_img_size = 8
+
     if not out_figure_path:
         out_figure_path = save_img_file[0:save_img_file.find('.')] + '_figures'
 
@@ -173,12 +177,15 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     # DM corr matrix
     cm = df[df.columns[0:-1]].corr()
+    curr_sz = copy.deepcopy(def_img_size)
+    if cm.shape[0] > def_img_size:
+        curr_sz = curr_sz + ((cm.shape[0] - curr_sz) * .3)
+    mtx_scale = curr_sz * 100
+
     mask = np.zeros_like(cm, dtype=np.bool)
     mask[np.triu_indices_from(mask)] = True
-    sz = 8
-    if cm.shape[0] > sz:
-        sz = sz + ((cm.shape[0] - sz) * .3)
-    fig, ax = plt.subplots(figsize=(sz, sz))
+
+    fig, ax = plt.subplots(figsize=(curr_sz, curr_sz))
     cmap = sns.diverging_palette(220, 10, as_cmap=True)
     sns.heatmap(cm, mask=mask, cmap=cmap, center=0, vmax=cm[cm < 1].max().max(), vmin=cm[cm < 1].min().min(),
                 square=True, linewidths=.5, cbar_kws={"shrink": .6})
@@ -186,22 +193,23 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     ax.set_yticklabels(cm.columns.tolist(), rotation=-30, va='bottom', fontsize=fontsize)
     ax.set_title('Nuisance Corr. Matrix', fontsize=fontsize_title)
     plt.tight_layout()
-    file_corr_matrix = pjoin(out_figure_path, 'Corr_matrix_regressors' + png_append)
-    fig.savefig(file_corr_matrix)
+    file_corr_matrix = 'Corr_matrix_regressors' + png_append
+    fig.savefig(pjoin(out_figure_path, file_corr_matrix))
     plt.close(fig)
     del fig, ax
 
     # DM of Nuisance Regressors (all)
     tr_label = 'TR (Volume #)'
-    fig, ax = plt.subplots(figsize=(4, sz))
+    fig, ax = plt.subplots(figsize=(curr_sz-4.1, def_img_size))
+    x_scale_html = ((curr_sz-4.1)/def_img_size)*890
     reporting.plot_design_matrix(df, ax=ax)
     ax.set_title('Nuisance Design Matrix', fontsize=fontsize_title)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right', fontsize=fontsize)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=fontsize)
     ax.set_ylabel(tr_label, fontsize=fontsize)
     plt.tight_layout()
-    file_design_matrix = pjoin(out_figure_path, 'Design_matrix' + png_append)
-    fig.savefig(file_design_matrix)
+    file_design_matrix = 'Design_matrix' + png_append
+    fig.savefig(pjoin(out_figure_path, file_design_matrix))
     plt.close(fig)
     del fig, ax
 
@@ -229,9 +237,10 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         Nplots = len(FD_thr)
         sns.set(font_scale=1.5)
         sns.set_style('ticks')
-        fig, axes = plt.subplots(Nplots, 1, figsize=(12, 4), squeeze=False)
+        fig, axes = plt.subplots(Nplots, 1, figsize=(def_img_size*1.5, def_img_size/2), squeeze=False)
         sns.despine()
         bound = .4
+        fd_mean = np.mean(y)
         for curr in np.arange(0, Nplots):
             axes[curr, 0].plot(y)
             axes[curr, 0].plot((-bound, Ntrs + bound), FD_thr[curr] * np.ones((1, 2))[0], '--', color='black')
@@ -242,16 +251,19 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                 for cluster in np.arange(1, info[1] + 1):
                     temp = np.where(info[0] == cluster)[0]
                     axes[curr, 0].axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
-                axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
-                axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
-                                        + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
-                                        str(FD_thr[curr]) + ')')
-                plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
-                axes[curr, 0].set_xlim((-bound, Ntrs + 8))
+
+            axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
+            axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
+                                    + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
+                                    str(FD_thr[curr]) + ')')
+            plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
+            plt.text(Ntrs, fd_mean - .01, 'avg = ' + str(fd_mean), fontsize=fontsize)
+            axes[curr, 0].set_xlim((-bound, Ntrs + 8))
+
         plt.tight_layout()
         axes[curr, 0].set_xlabel(tr_label)
-        file_fd_plot = pjoin(out_figure_path, FD + '_timeseries' + png_append)
-        fig.savefig(file_fd_plot)
+        file_fd_plot = FD + '_timeseries' + png_append
+        fig.savefig(pjoin(out_figure_path, file_fd_plot))
         plt.close(fig)
         del fig, axes
         print(FD + ' timeseries plot saved')
@@ -285,8 +297,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
             fig = plotting.plot_stat_map(m_img, mean_img, threshold=3, colorbar=True, display_mode='z', vmax=mx,
                                          title=title_str,
                                          cut_coords=7)
-            file_temp = pjoin(out_figure_path, t_png + col + png_append)
-            fig.savefig(file_temp)
+            file_temp = t_png + col + png_append
+            fig.savefig(pjoin(out_figure_path, file_temp))
             file_tstat.append({'name': col, 'file': file_temp})
             plt.close()
             del fig, file_temp
@@ -299,12 +311,13 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     fig = plotting.plot_stat_map(m_img, mean_img, threshold=.2, colorbar=True, display_mode='z', vmax=mx,
                                  title=title_str,
                                  cut_coords=7)
-    file_rsq_map = pjoin(out_figure_path, 'Rsquared' + png_append)
-    fig.savefig(file_rsq_map)
+    file_rsq_map = 'Rsquared' + png_append
+    fig.savefig(pjoin(out_figure_path, file_rsq_map))
     plt.close()
     del fig
     print(title_str + ' map saved')
 
+    ######### html report
     templateLoader = jinja2.FileSystemLoader(searchpath="/")
     templateEnv = jinja2.Environment(loader=templateLoader)
 
@@ -322,7 +335,9 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                     "file_corr_matrix": file_corr_matrix,
                     "file_fd_plot": file_fd_plot,
                     "file_rsq_map": file_rsq_map,
-                    "file_tstat": file_tstat
+                    "file_tstat": file_tstat,
+                    "x_scale": x_scale_html,
+                    "mtx_scale": mtx_scale
                     }
 
     outputText = template.render(templateVars)
@@ -333,5 +348,6 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     print('')
     print('HTML report: ' + html_file)
+    return new_img
 
 denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)

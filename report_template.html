@@ -33,7 +33,7 @@
 	<p style="margin-top:20px"> <strong style="background-color:Aqua;"> High-pass filter </strong> applied [frequencies < <strong>{{ hp_filter }}</strong> removed] </p>
 {% else %}
 	<p style="margin-top:20px"> <strong style="background-color:Yellow;"> ***NO additional high-pass filter applied*** </strong> </p>
-	<p style="margin-left:30px"> Note that if Nuisance regressors contain <strong> low-frequency DRIFT </strong> - it may be reintroducted into data!! </p>
+<p style="margin-left:30px"> Note that if Nuisance regressors contain <strong> low-frequency DRIFT </strong> and if low-frequency <strong>cosines</strong> were not included as Nuisance regressors - drift-like content will be present in 'cleaned' output data!! </p>
 {% endif %}
 
 {% if lp_filter %}
@@ -46,10 +46,10 @@
 
 <h1>Nuisance Regressor Information</h1>
 <img src={{ file_design_matrix }} 
-	alt="Nuisance Design Matrix" style="width:400px;height:890px" >
+	alt="Nuisance Design Matrix" width="{{ x_scale }}px" style="height:890px" >
 
 <img src={{ file_corr_matrix }} 
-	alt="Nuisance Corr Matrix" style="width:800px;height:800px" >
+	alt="Nuisance Corr Matrix" width="{{ mtx_scale }}px" height="{{ mtx_scale }}px" >
 
 <hr>
 
@@ -62,7 +62,7 @@
 <h1>Nuisance Regressor Stat Maps</h1>
 
 <h2 style="text-align:center"> <i>Total Nuisance R<sup>2</sup> Map</i> </h2>
-<p style="text-align:center"> <img src={{ file_rsq_map }}
+<p style="text-align:center"> <img src=" {{ file_rsq_map }} "
 	alt="R squared map" style="width:1200px;height:200px"> </p>
 <br>
 
