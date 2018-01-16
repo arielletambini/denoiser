@@ -22,13 +22,15 @@ parser = argparse.ArgumentParser(description='Function for performing nuisance r
 parser.add_argument('img_file', help='4d nifti img: file path or nibabel object loaded into memory')
 parser.add_argument('tsv_file', help='tsv file containing nuisance regressors to be removed')
 parser.add_argument('out_path', help='output directory for saving new data file')
-parser.add_argument('--col_names', help='which columns of TSV file to include as nuisance regressors. defaults to ALL columns.',
+parser.add_argument('--col_names',
+                    help='which columns of TSV file to include as nuisance regressors. defaults to ALL columns.',
                     nargs="+")
 parser.add_argument('--hp_filter', help='frequency cut-off for high pass filter (removing low frequencies). Recommend '
-                    '.009 Hz')
+                                        '.009 Hz')
 parser.add_argument('--lp_filter', help='frequency cut-off for low pass filter (removing high frequencies). Recommend '
-                    '.1 Hz for non-task data')
-parser.add_argument('--out_figure_path', help='output directory for saving figures. Defaults to location of out_path + _figures')
+                                        '.1 Hz for non-task data')
+parser.add_argument('--out_figure_path',
+                    help='output directory for saving figures. Defaults to location of out_path + _figures')
 
 args = parser.parse_args()
 
@@ -40,8 +42,8 @@ hp_filter = args.hp_filter
 lp_filter = args.lp_filter
 out_figure_path = args.out_figure_path
 
-def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_filter=False, out_figure_path=False):
 
+def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_filter=False, out_figure_path=False):
     nii_ext = '.nii.gz'
     FD_thr = [.5]
     sc_range = np.arange(-1, 3)
@@ -51,7 +53,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     img = load_niimg(img_file)
     # get file info
     img_name = os.path.basename(img.get_filename())
-    save_img_file = pjoin(out_path, img_name[0:img_name.find('.')] + \
+    file_base = img_name[0:img_name.find('.')]
+    save_img_file = pjoin(out_path, file_base + \
                           '_NR' + nii_ext)
     data = img.get_data()
     df_orig = pandas.read_csv(tsv_file, '\t', na_values='n/a')
@@ -80,7 +83,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     frame_times = np.arange(Ntrs) * TR
     if hp_filter:
         hp_filter = float(hp_filter)
-        assert(hp_filter > 0)
+        assert (hp_filter > 0)
         period_cutoff = 1. / hp_filter
         df = make_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
                                 add_reg_names=df.columns.tolist())
@@ -104,7 +107,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     model = regression.OLSModel(dm)
     results = model.fit(data.T)
     if not hp_filter:
-        results_orig_resid = copy.deepcopy(results.resid) # save for rsquared computation
+        results_orig_resid = copy.deepcopy(results.resid)  # save for rsquared computation
 
     # apply low-pass filter
     if lp_filter:
@@ -114,13 +117,19 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         if low_pass >= Fs / 2:
             raise ValueError('Low pass filter cutoff if too close to the Nyquist frequency (%s)' % (Fs / 2))
 
+        temp_img_file = pjoin(out_path, file_base + \
+                              '_temp' + nii_ext)
+        temp_img = nb.Nifti1Image(np.reshape(results.resid.T + np.reshape(data_mean, (Nvox, 1)), img.shape).astype('float32'),
+                                  img.affine, header=img.header)
+        temp_img.to_filename(temp_img_file)
         results.resid = butterworth(results.resid, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
-        print('Low-pass Filter Applied: < ' + str(low_pass))
+        print('Low-pass Filter Applied: < ' + str(low_pass) + ' Hz')
 
     # add mean back into data
     clean_data = results.resid.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
 
     # save out new data file
+    print('Saving output file...')
     clean_data = np.reshape(clean_data, img.shape).astype('float32')
     new_img = nb.Nifti1Image(clean_data, img.affine, header=img.header)
     new_img.to_filename(save_img_file)
@@ -203,8 +212,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     # DM of Nuisance Regressors (all)
     tr_label = 'TR (Volume #)'
-    fig, ax = plt.subplots(figsize=(curr_sz-4.1, def_img_size))
-    x_scale_html = ((curr_sz-4.1)/def_img_size)*890
+    fig, ax = plt.subplots(figsize=(curr_sz - 4.1, def_img_size))
+    x_scale_html = ((curr_sz - 4.1) / def_img_size) * 890
     reporting.plot_design_matrix(df, ax=ax)
     ax.set_title('Nuisance Design Matrix', fontsize=fontsize_title)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right', fontsize=fontsize)
@@ -240,7 +249,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         Nplots = len(FD_thr)
         sns.set(font_scale=1.5)
         sns.set_style('ticks')
-        fig, axes = plt.subplots(Nplots, 1, figsize=(def_img_size*1.5, def_img_size/2), squeeze=False)
+        fig, axes = plt.subplots(Nplots, 1, figsize=(def_img_size * 1.5, def_img_size / 2), squeeze=False)
         sns.despine()
         bound = .4
         fd_mean = np.mean(y)
@@ -276,22 +285,44 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         file_fd_plot = None
 
     # Carpet and DVARS plots - before & after nuisance regression
+
+    # need to create mask file to input to DVARS function
     mask_file = pjoin(out_figure_path, 'mask_temp.nii.gz')
     nifti_masker = NiftiMasker(mask_strategy='epi', standardize=False)
     nifti_masker.fit(img)
     nifti_masker.mask_img_.to_filename(mask_file)
 
+    # create 2 or 3 carpet plots, depending on if LP filter is also applied
+    Ncarpet = 2
+    total_sz = int(16)
+    carpet_scale = 840
+    y_labels = ['Input (voxels)', 'Output \'cleaned\'']
+    imgs = [img, new_img]
+    img_files = [img_file, save_img_file]
+    color = ['red', 'salmon']
+    labels = ['input', 'cleaned']
+    if lp_filter:
+        Ncarpet = 3
+        total_sz = int(20)
+        carpet_scale = carpet_scale * (9/8)
+        y_labels = ['Input', 'Clean Pre-LP', 'Clean LP']
+        imgs.insert(1, temp_img)
+        img_files.insert(1, temp_img_file)
+        color.insert(1, 'firebrick')
+        labels.insert(1, 'clean pre-LP')
+        labels[-1] = 'clean LP'
+
     dvars = []
-    for idx, in_file in enumerate([img_file, save_img_file]):
+    print('Computing dvars...')
+    for in_file in img_files:
         temp = nac.compute_dvars(in_file=in_file, in_mask=mask_file)[1]
         dvars.append(np.hstack((temp.mean(), temp)))
         del temp
 
-    total_sz = int(16)
     small_sz = 2
-    fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size))
-    row_used=0
-    if np.sum(fd_idx) > 0: # if FD data is available
+    fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size + ((Ncarpet - 2) * 1)))
+    row_used = 0
+    if np.sum(fd_idx) > 0:  # if FD data is available
         row_used = row_used + small_sz
         ax0 = plt.subplot2grid((total_sz, 1), (0, 0), rowspan=small_sz)
         ax0.plot(y)
@@ -313,8 +344,6 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         ax0.spines["left"].set_position(('outward', 10))
 
     ax_d = plt.subplot2grid((total_sz, 1), (row_used, 0), rowspan=small_sz)
-    color = ['red', 'salmon']
-    labels = ['input', 'cleaned']
     for iplot in np.arange(len(dvars)):
         ax_d.plot(dvars[iplot], color=color[iplot], label=labels[iplot])
     ax_d.set_ylabel('DVARS')
@@ -328,16 +357,15 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     row_used = row_used + small_sz
 
     st = 0
-    carpet_each = int((total_sz - row_used) / 2)
-    y_labels = ['Input (voxels)', 'Output \'cleaned\'']
-    for idx, img_curr in enumerate([img, new_img]):
+    carpet_each = int((total_sz - row_used) / Ncarpet)
+    for idx, img_curr in enumerate(imgs):
         ax_curr = plt.subplot2grid((total_sz, 1), (row_used + st, 0), rowspan=carpet_each)
         fig = plotting.plot_carpet(img_curr, figure=fig, axes=ax_curr)
         ax_curr.set_ylabel(y_labels[idx])
         for side in ["bottom", "left"]:
             ax_curr.spines[side].set_position(('outward', 10))
 
-        if idx == 0:
+        if idx < len(imgs)-1:
             ax_curr.spines["bottom"].set_visible(False)
             ax_curr.set_xticklabels('')
             ax_curr.set_xlabel('')
@@ -348,6 +376,10 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     plt.close()
     del fig, ax0, ax_curr, ax_d, dvars
     os.remove(mask_file)
+    print('Carpet/DVARS plots saved')
+    if lp_filter:
+        os.remove(temp_img_file)
+        del temp_img
 
     # Display T-stat maps for nuisance regressors
     # create mean img
@@ -412,7 +444,8 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                     "file_tstat": file_tstat,
                     "x_scale": x_scale_html,
                     "mtx_scale": mtx_scale,
-                    "file_carpet_plot": file_carpet_plot
+                    "file_carpet_plot": file_carpet_plot,
+                    "carpet_scale": carpet_scale
                     }
 
     TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
