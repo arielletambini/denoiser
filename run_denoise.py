@@ -8,10 +8,13 @@ import os, pandas, sys, pdb, argparse, copy, scipy, jinja2
 from os.path import join as pjoin
 from nilearn import plotting
 from nilearn.signal import butterworth
+from nilearn.input_data import NiftiMasker
+
 import matplotlib
 import pylab as plt
 import seaborn as sns
 from nilearn._utils.niimg import load_niimg
+from niworkflows.nipype.algorithms import confounds as nac
 
 parser = argparse.ArgumentParser(description='Function for performing nuisance regression. Saves resulting output '
                                              'nifti file, information about nuisance regressors and motion (html '
@@ -119,7 +122,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     # save out new data file
     clean_data = np.reshape(clean_data, img.shape).astype('float32')
-    new_img = nb.Nifti1Image(clean_data, img.affine)
+    new_img = nb.Nifti1Image(clean_data, img.affine, header=img.header)
     new_img.to_filename(save_img_file)
 
     ######### generate Rsquared map for confounds only
@@ -272,6 +275,80 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         print(FD + ' not found: ' + FD + ' timeseries not plotted')
         file_fd_plot = None
 
+    # Carpet and DVARS plots - before & after nuisance regression
+    mask_file = pjoin(out_figure_path, 'mask_temp.nii.gz')
+    nifti_masker = NiftiMasker(mask_strategy='epi', standardize=False)
+    nifti_masker.fit(img)
+    nifti_masker.mask_img_.to_filename(mask_file)
+
+    dvars = []
+    for idx, in_file in enumerate([img_file, save_img_file]):
+        temp = nac.compute_dvars(in_file=in_file, in_mask=mask_file)[1]
+        dvars.append(np.hstack((temp.mean(), temp)))
+        del temp
+
+    total_sz = int(16)
+    small_sz = 2
+    fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size))
+    row_used=0
+    if np.sum(fd_idx) > 0: # if FD data is available
+        row_used = row_used + small_sz
+        ax0 = plt.subplot2grid((total_sz, 1), (0, 0), rowspan=small_sz)
+        ax0.plot(y)
+        ax0.scatter(np.arange(0, Ntrs), y, s=10)
+        curr = 0
+        if Nremove[curr] > 0:
+            info = scipy.ndimage.measurements.label(sc_idx[curr])
+            for cluster in np.arange(1, info[1] + 1):
+                temp = np.where(info[0] == cluster)[0]
+                ax0.axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
+        ax0.set_ylabel(FD)
+
+        for side in ["top", "right", "bottom"]:
+            ax0.spines[side].set_color('none')
+            ax0.spines[side].set_visible(False)
+
+        ax0.set_xticks([])
+        ax0.set_xlim((-.5, Ntrs - .5))
+        ax0.spines["left"].set_position(('outward', 10))
+
+    ax_d = plt.subplot2grid((total_sz, 1), (row_used, 0), rowspan=small_sz)
+    color = ['red', 'salmon']
+    labels = ['original', 'cleaned']
+    for iplot in np.arange(len(dvars)):
+        ax_d.plot(dvars[iplot], color=color[iplot], label=labels[iplot])
+    ax_d.set_ylabel('DVARS')
+    for side in ["top", "right", "bottom"]:
+        ax_d.spines[side].set_color('none')
+        ax_d.spines[side].set_visible(False)
+    ax_d.set_xticks([])
+    ax_d.set_xlim((-.5, Ntrs - .5))
+    ax_d.spines["left"].set_position(('outward', 10))
+    ax_d.legend(fontsize=fontsize - 2)
+    row_used = row_used + small_sz
+
+    st = 0
+    carpet_each = int((total_sz - row_used) / 2)
+    y_labels = ['Input data (voxels)', 'Output (\'cleaned\') data']
+    for idx, img_curr in enumerate([img, new_img]):
+        ax_curr = plt.subplot2grid((total_sz, 1), (row_used + st, 0), rowspan=carpet_each)
+        fig = plotting.plot_carpet(img_curr, figure=fig, axes=ax_curr)
+        ax_curr.set_ylabel(y_labels[idx])
+        for side in ["bottom", "left"]:
+            ax_curr.spines[side].set_position(('outward', 10))
+
+        if idx == 0:
+            ax_curr.spines["bottom"].set_visible(False)
+            ax_curr.set_xticklabels('')
+            ax_curr.set_xlabel('')
+            st = st + carpet_each
+
+    file_carpet_plot = 'Carpet_plots' + png_append
+    fig.savefig(pjoin(out_figure_path, file_carpet_plot))
+    plt.close()
+    del fig, ax0, ax_curr, ax_d, dvars
+    os.remove(mask_file)
+
     # Display T-stat maps for nuisance regressors
     # create mean img
     img_size = (img.shape[0], img.shape[1], img.shape[2])
@@ -321,9 +398,6 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     templateLoader = jinja2.FileSystemLoader(searchpath="/")
     templateEnv = jinja2.Environment(loader=templateLoader)
 
-    TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
-    template = templateEnv.get_template(TEMPLATE_FILE)
-
     templateVars = {"img_file": img_file,
                     "save_img_file": save_img_file,
                     "Ntrs": Ntrs,
@@ -337,8 +411,12 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                     "file_rsq_map": file_rsq_map,
                     "file_tstat": file_tstat,
                     "x_scale": x_scale_html,
-                    "mtx_scale": mtx_scale
+                    "mtx_scale": mtx_scale,
+                    "file_carpet_plot": file_carpet_plot
                     }
+
+    TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
+    template = templateEnv.get_template(TEMPLATE_FILE)
 
     outputText = template.render(templateVars)
 
