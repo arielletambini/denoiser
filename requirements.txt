@@ -1,11 +1,13 @@
+git+https://github.com/chrisfilo/nilearn.git@enh/carpet_plot
 nistats
 nibabel
 numpy
 pandas
-nilearn
 matplotlib
 scipy
 sklearn
 patsy
 seaborn
 jinja2
+git+https://github.com/poldracklab/niworkflows
+nitime
