@@ -9,3 +9,4 @@ sklearn
 patsy
 seaborn
 jinja2
+git+https://github.com/poldracklab/niworkflows
