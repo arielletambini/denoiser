@@ -2,7 +2,6 @@ nistats
 nibabel
 numpy
 pandas
-nilearn
 matplotlib
 scipy
 sklearn
