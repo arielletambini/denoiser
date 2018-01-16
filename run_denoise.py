@@ -314,7 +314,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     ax_d = plt.subplot2grid((total_sz, 1), (row_used, 0), rowspan=small_sz)
     color = ['red', 'salmon']
-    labels = ['original', 'cleaned']
+    labels = ['input', 'cleaned']
     for iplot in np.arange(len(dvars)):
         ax_d.plot(dvars[iplot], color=color[iplot], label=labels[iplot])
     ax_d.set_ylabel('DVARS')
@@ -329,7 +329,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     st = 0
     carpet_each = int((total_sz - row_used) / 2)
-    y_labels = ['Input data (voxels)', 'Output (\'cleaned\') data']
+    y_labels = ['Input (voxels)', 'Output \'cleaned\'']
     for idx, img_curr in enumerate([img, new_img]):
         ax_curr = plt.subplot2grid((total_sz, 1), (row_used + st, 0), rowspan=carpet_each)
         fig = plotting.plot_carpet(img_curr, figure=fig, axes=ax_curr)
