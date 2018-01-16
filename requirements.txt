@@ -10,4 +10,4 @@ seaborn
 jinja2
 git+https://github.com/poldracklab/niworkflows
 nitime
-git+https://github.com/chrisfilo/nilearn.git@enh/carpet_plot --upgrade
+git+https://github.com/chrisfilo/nilearn.git@enh/carpet_plot
