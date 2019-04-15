@@ -17,6 +17,9 @@ parser.add_argument('--lp_filter', help='frequency cut-off for low pass filter (
                                         '.1 Hz for non-task data')
 parser.add_argument('--out_figure_path',
                     help='output directory for saving figures. Defaults to location of out_path + _figures')
+parser.add_argument('--fd_col_name',
+                    help='Column in tsv_file that contains Framewise Displacement values.')
+
 
 args = parser.parse_args()
 
@@ -27,6 +30,7 @@ col_names = args.col_names
 hp_filter = args.hp_filter
 lp_filter = args.lp_filter
 out_figure_path = args.out_figure_path
+fd_col_name = args.fd_col_name
 
 if __name__ == "__main__":
-    denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path)
+    denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter, out_figure_path, fd_col_name)
