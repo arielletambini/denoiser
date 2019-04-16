@@ -1,13 +1,13 @@
 git+https://github.com/chrisfilo/nilearn.git@enh/carpet_plot
-nistats
+nistats==0.0.1a0
 nibabel
 numpy
 pandas
-matplotlib
+matplotlib<2.2.0
 scipy
 sklearn
 patsy
 seaborn
 jinja2
-git+https://github.com/poldracklab/niworkflows
+niworkflows==0.2.8
 nitime
