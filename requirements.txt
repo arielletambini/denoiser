@@ -3,7 +3,7 @@ nistats
 nibabel
 numpy
 pandas
-matplotlib
+matplotlib<2.2.0
 scipy
 sklearn
 patsy
