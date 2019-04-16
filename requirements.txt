@@ -9,5 +9,5 @@ sklearn
 patsy
 seaborn
 jinja2
-git+https://github.com/poldracklab/niworkflows
+niworkflows==0.2.8
 nitime
