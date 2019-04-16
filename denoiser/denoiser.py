@@ -3,7 +3,7 @@ from nistats import reporting
 from nistats.design_matrix import make_first_level_design_matrix
 import nibabel as nb
 import numpy as np
-import os, pandas, sys, pdb, copy, scipy, jinja2
+import os, pandas, sys, pdb, copy, scipy, jinja2, json
 from os.path import join as pjoin
 from nilearn import plotting
 from nilearn.signal import butterworth
@@ -17,20 +17,33 @@ from nilearn._utils.niimg import load_niimg
 from nipype.algorithms import confounds as nac
 
 
-def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_filter=False, out_figure_path=False,
-        fd_col_name=None):
+def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_filter=None, out_figure_path=None,
+        fd_col_name=None, FD_thr=None, bids=None, strategy_name=None):
+
+    if bids:
+        assert strategy_name, "If bids=True, you must provide a strategy name!"
     nii_ext = '.nii.gz'
-    FD_thr = [.5]
+    if FD_thr:
+        FD_thr = [float(FD_thr)]
+    else:
+        FD_thr = [.5]
     sc_range = np.arange(-1, 3)
     constant = 'constant'
+    # If BIDS is true, create a dict to store JSON outputs
+    if bids:
+        bids_dict = {}
+    pdb.set_trace()
 
     # read in files
     img = load_niimg(img_file)
     # get file info
     img_name = os.path.basename(img.get_filename())
-    file_base = img_name[0:img_name.find('.')]
-    save_img_file = pjoin(out_path, file_base + \
-                          '_NR' + nii_ext)
+    if bids:
+        file_base = img_name.rsplit('preproc')[0]+'residuals_variant-{0}_bold'.format(strategy_name) 
+        save_img_file = pjoin(out_path, file_base + nii_ext) 
+    else:
+        file_base = img_name[0:img_name.find('.')]
+        save_img_file = pjoin(out_path, file_base + '_NR' + nii_ext)
     data = img.get_data()
     df_orig = pandas.read_csv(tsv_file, '\t', na_values='n/a')
     df = copy.deepcopy(df_orig)
@@ -108,6 +121,19 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     clean_data = np.reshape(clean_data, img.shape).astype('float32')
     new_img = nb.Nifti1Image(clean_data, img.affine, header=img.header)
     new_img.to_filename(save_img_file)
+
+    # If bids=True, create a JSON fie with nuisance cleaning parameters
+    if bids:
+        bids_dict['source_file'] = img_file
+        bids_dict['cleaning_code'] = 'arielletambini/denoiser'
+        bids_dict['nuisance_strategy_name'] = strategy_name
+        bids_dict['hp_freq'] = hp_filter
+        bids_dict['lp_freq'] = lp_filter
+        bids_dict['confound_regressors'] = col_names
+
+        json_out_path = pjoin(out_path, file_base + '.json')
+        with open(json_out_path, 'w') as outfile:  
+                json.dump(bids_dict, outfile)
 
     ######### generate Rsquared map for confounds only
     if hp_filter:
@@ -201,72 +227,74 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     del fig, ax
 
     # FD timeseries plot
-    FD = 'FD'
-    
-    if fd_col_name:
-        FD_name = fd_col_name
-    else:
-        # Heuristic guess for possible names of the FD column, if none is supplied
-        try:
+    FD = 'FD' 
+    try: 
+        if fd_col_name:
+            FD_name = fd_col_name
+        else:
+            # Heuristic guess for possible names of the FD column, if none is supplied    
             poss_names = ['FramewiseDisplacement', FD, 'framewisedisplacement', 'fd', 'framewise_displacement']
             fd_idx = [df_orig.columns.__contains__(i) for i in poss_names]
             if np.sum(fd_idx) > 0:
                 pna = np.array(poss_names)
                 FD_name = pna[fd_idx][0]
-            if sum(df_orig[FD_name].isnull()) > 0:
-                df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
-            y = df_orig[FD_name].as_matrix()
-            Nremove = []
-            sc_idx = []
-            for thr_idx, thr in enumerate(FD_thr):
-                idx = y >= thr
-                sc_idx.append(copy.deepcopy(idx))
-                for iidx in np.where(idx)[0]:
-                    for buffer in sc_range:
-                        curr_idx = iidx + buffer
-                        if curr_idx >= 0 and curr_idx <= len(idx):
-                            sc_idx[thr_idx][curr_idx] = True
-                Nremove.append(np.sum(sc_idx[thr_idx]))
 
-            Nplots = len(FD_thr)
-            sns.set(font_scale=1.5)
-            sns.set_style('ticks')
-            fig, axes = plt.subplots(Nplots, 1, figsize=(def_img_size * 1.5, def_img_size / 2), squeeze=False)
-            sns.despine()
-            bound = .4
-            fd_mean = np.mean(y)
-            for curr in np.arange(0, Nplots):
-                axes[curr, 0].plot(y)
-                axes[curr, 0].plot((-bound, Ntrs + bound), FD_thr[curr] * np.ones((1, 2))[0], '--', color='black')
-                axes[curr, 0].scatter(np.arange(0, Ntrs), y, s=20)
+        if sum(df_orig[FD_name].isnull()) > 0:
+            df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
+        y = df_orig[FD_name].as_matrix()
+        Nremove = []
+        sc_idx = []
+        for thr_idx, thr in enumerate(FD_thr):
+            idx = y >= thr
+            sc_idx.append(copy.deepcopy(idx))
+            for iidx in np.where(idx)[0]:
+                for buffer in sc_range:
+                    curr_idx = iidx + buffer
+                    if curr_idx >= 0 and curr_idx < len(idx):
+                        sc_idx[thr_idx][curr_idx] = True
+            Nremove.append(np.sum(sc_idx[thr_idx]))
+        pdb.set_trace()
 
-                if Nremove[curr] > 0:
-                    info = scipy.ndimage.measurements.label(sc_idx[curr])
-                    for cluster in np.arange(1, info[1] + 1):
-                        temp = np.where(info[0] == cluster)[0]
-                        axes[curr, 0].axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
+        Nplots = len(FD_thr)
+        sns.set(font_scale=1.5)
+        sns.set_style('ticks')
+        fig, axes = plt.subplots(Nplots, 1, figsize=(def_img_size * 1.5, def_img_size / 2), squeeze=False)
+        sns.despine()
+        bound = .4
+        fd_mean = np.mean(y)
+        for curr in np.arange(0, Nplots):
+            axes[curr, 0].plot(y)
+            axes[curr, 0].plot((-bound, Ntrs + bound), FD_thr[curr] * np.ones((1, 2))[0], '--', color='black')
+            axes[curr, 0].scatter(np.arange(0, Ntrs), y, s=20)
 
-                axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
-                axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
-                                        + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
-                                        str(FD_thr[curr]) + ')')
-                plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
-                plt.text(Ntrs, fd_mean - .01, 'avg = ' + str(fd_mean), fontsize=fontsize)
-                axes[curr, 0].set_xlim((-bound, Ntrs + 8))
+            if Nremove[curr] > 0:
+                info = scipy.ndimage.measurements.label(sc_idx[curr])
+                for cluster in np.arange(1, info[1] + 1):
+                    temp = np.where(info[0] == cluster)[0]
+                    axes[curr, 0].axvspan(temp.min() - bound, temp.max() + bound, alpha=.5, color='red')
 
-            plt.tight_layout()
-            axes[curr, 0].set_xlabel(tr_label)
-            file_fd_plot = FD + '_timeseries' + png_append
-            fig.savefig(pjoin(out_figure_path, file_fd_plot))
-            plt.close(fig)
-            del fig, axes
-            print(FD + ' timeseries plot saved')
+            axes[curr, 0].set_ylabel('Framewise Disp. (' + FD + ')')
+            axes[curr, 0].set_title(FD + ': ' + str(100 * Nremove[curr] / Ntrs)[0:4]
+                                    + '% of scan (' + str(Nremove[curr]) + ' volumes) would be scrubbed (FD thr.= ' +
+                                    str(FD_thr[curr]) + ')')
+            plt.text(Ntrs + 1, FD_thr[curr] - .01, FD + ' = ' + str(FD_thr[curr]), fontsize=fontsize)
+            plt.text(Ntrs, fd_mean - .01, 'avg = ' + str(fd_mean), fontsize=fontsize)
+            axes[curr, 0].set_xlim((-bound, Ntrs + 8))
 
-        except:
-            print(FD + ' not found: ' + FD + ' timeseries not plotted')
-            file_fd_plot = None
-            pass
-
+        plt.tight_layout()
+        axes[curr, 0].set_xlabel(tr_label)
+        file_fd_plot = FD + '_timeseries' + png_append
+        fig.savefig(pjoin(out_figure_path, file_fd_plot))
+        plt.close(fig)
+        del fig, axes
+        print(FD + ' timeseries plot saved')
+        fd_exists = True
+    
+    except:
+        print(FD + ' not found: ' + FD + ' timeseries not plotted')
+        file_fd_plot = None
+        pass
+    
     # Carpet and DVARS plots - before & after nuisance regression
 
     # need to create mask file to input to DVARS function
@@ -305,7 +333,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     small_sz = 2
     fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size + ((Ncarpet - 2) * 1)))
     row_used = 0
-    if np.sum(fd_idx) > 0:  # if FD data is available
+    if fd_exists:  # if FD data is available
         row_used = row_used + small_sz
         ax0 = plt.subplot2grid((total_sz, 1), (0, 0), rowspan=small_sz)
         ax0.plot(y)
