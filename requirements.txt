@@ -1,5 +1,5 @@
 git+https://github.com/chrisfilo/nilearn.git@enh/carpet_plot
-nistats
+nistats=0.0.1a0
 nibabel
 numpy
 pandas
