@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from nistats import regression
 from nistats import reporting
-from nistats.design_matrix import make_design_matrix
+from nistats.design_matrix import make_first_level_design_matrix
 import nibabel as nb
 import numpy as np
 import os, pandas, sys, pdb, argparse, copy, scipy, jinja2
@@ -85,7 +85,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         hp_filter = float(hp_filter)
         assert (hp_filter > 0)
         period_cutoff = 1. / hp_filter
-        df = make_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
+        df = make_first_level_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
                                 add_reg_names=df.columns.tolist())
         # fn adds intercept into dm
 
