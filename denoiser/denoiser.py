@@ -31,7 +31,6 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     # If BIDS is true, create a dict to store JSON outputs
     if bids:
         bids_dict = {}
-    pdb.set_trace()
 
     # read in files
     img = load_niimg(img_file)
@@ -252,7 +251,6 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
                     if curr_idx >= 0 and curr_idx < len(idx):
                         sc_idx[thr_idx][curr_idx] = True
             Nremove.append(np.sum(sc_idx[thr_idx]))
-        pdb.set_trace()
 
         Nplots = len(FD_thr)
         sns.set(font_scale=1.5)
