@@ -1,5 +1,5 @@
 def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_filter=None, out_figure_path=None,
-        fd_col_name=None, FD_thr=None, bids=None, strategy_name=None):
+        fd_col_name=None, FD_thr=None, bids=None, strategy_name=None, template_file=None):
 
     from nistats import regression
     from nistats import reporting
@@ -463,8 +463,10 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
                     "carpet_scale": carpet_scale
                     }
 
-    TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
-    template = templateEnv.get_template(TEMPLATE_FILE)
+    if not template_file:
+        template_file = pjoin(os.getcwd(), "report_template.html")
+
+    template = templateEnv.get_template(template_file)
 
     outputText = template.render(templateVars)
 

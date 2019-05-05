@@ -28,6 +28,9 @@ parser.add_argument('--bids',
 parser.add_argument('--strategy_name',
                     help='Required if bids=True. Specify a name for the nuisance cleaning strategy to be\
                             included in the variant field of the output filename.')
+parser.add_argument('--template_file',
+                    help='Required if running denoiser as part of a Nipype workflow. Absolute path to an HTML\
+                            template for use when creating visual reports.')
 
 args = parser.parse_args()
 
@@ -42,7 +45,8 @@ fd_col_name = args.fd_col_name
 FD_thr = args.FD_thr
 bids = args.bids
 strategy_name = args.strategy_name
+template_file = args.template_file
 
 if __name__ == "__main__":
     denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter,
-            out_figure_path, fd_col_name, FD_thr, bids, strategy_name)
+            out_figure_path, fd_col_name, FD_thr, bids, strategy_name, template_file)
