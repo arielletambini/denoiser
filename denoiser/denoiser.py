@@ -1,24 +1,23 @@
-from nistats import regression
-from nistats import reporting
-from nistats.design_matrix import make_first_level_design_matrix
-import nibabel as nb
-import numpy as np
-import os, pandas, sys, pdb, copy, scipy, jinja2, json
-from os.path import join as pjoin
-from nilearn import plotting
-from nilearn.signal import butterworth
-from nilearn.input_data import NiftiMasker
-from denoiser.plotting import plot_carpet
-
-import matplotlib
-import pylab as plt
-import seaborn as sns
-from nilearn._utils.niimg import load_niimg
-from nipype.algorithms import confounds as nac
-
-
 def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_filter=None, out_figure_path=None,
         fd_col_name=None, FD_thr=None, bids=None, strategy_name=None):
+
+    from nistats import regression
+    from nistats import reporting
+    from nistats.design_matrix import make_first_level_design_matrix
+    import nibabel as nb
+    import numpy as np
+    import os, pandas, sys, pdb, copy, scipy, jinja2, json
+    from os.path import join as pjoin
+    from nilearn import plotting
+    from nilearn.signal import butterworth
+    from nilearn.input_data import NiftiMasker
+    from denoiser.plotting import plot_carpet
+
+    import matplotlib
+    import pylab as plt
+    import seaborn as sns
+    from nilearn._utils.niimg import load_niimg
+    from nipype.algorithms import confounds as nac
 
     if bids:
         assert strategy_name, "If bids=True, you must provide a strategy name!"
