@@ -19,6 +19,8 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     from nilearn._utils.niimg import load_niimg
     from nipype.algorithms import confounds as nac
 
+    assert os.path.exists(out_path), "ERROR! out_path must be an existing directory"
+
     if bids:
         assert strategy_name, "If bids=True, you must provide a strategy name!"
     nii_ext = '.nii.gz'
