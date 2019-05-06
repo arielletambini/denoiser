@@ -1,5 +1,5 @@
 def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_filter=None, out_figure_path=None,
-        fd_col_name=None, FD_thr=None, bids=None, strategy_name=None, template_file=None):
+        fd_col_name=None, FD_thr=None, bids=None, strategy_name=None, template_file=None, sink_link=None):
 
     from nistats import regression
     from nistats import reporting
@@ -31,6 +31,9 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     # If BIDS is true, create a dict to store JSON outputs
     if bids:
         bids_dict = {}
+
+    if sink_link:
+        del sink_link
 
     # read in files
     img = load_niimg(img_file)

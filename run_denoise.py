@@ -31,6 +31,10 @@ parser.add_argument('--strategy_name',
 parser.add_argument('--template_file',
                     help='Required if running denoiser as part of a Nipype workflow. Absolute path to an HTML\
                             template for use when creating visual reports.')
+parser.add_argument('--sink_link',
+                    help='Required if running denoiser as part of a Nipype workflow. Dummy variable which is needed\
+                            to force Nipype to wait for the output directory to be created before running denoiser.\
+                            The output of the workflow DataSink node should be passed into sink_link.')
 
 args = parser.parse_args()
 
@@ -46,7 +50,8 @@ FD_thr = args.FD_thr
 bids = args.bids
 strategy_name = args.strategy_name
 template_file = args.template_file
+sink_link = args.sink_link
 
 if __name__ == "__main__":
     denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter,
-            out_figure_path, fd_col_name, FD_thr, bids, strategy_name, template_file)
+            out_figure_path, fd_col_name, FD_thr, bids, strategy_name, template_file, sink_link)
