@@ -16,5 +16,5 @@ This tool should be used only **after** BOLD data are *minimally preprocessed* (
 after preprocessing the data using ``fmriprep``, which creates a .tsv file containing nuisance signals).
 
 .. image:: https://zenodo.org/badge/4033784/arielletambini/denoiser.svg
-   :target: https://zenodo.org/badge/latestdoi/4033784/arielletambini/denoiser)
+   :target: https://zenodo.org/badge/latestdoi/4033784/arielletambini/denoiser
 
