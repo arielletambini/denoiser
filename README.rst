@@ -15,3 +15,5 @@ The specific noise signals to be removed are specified by the user (contained in
 This tool should be used only **after** BOLD data are *minimally preprocessed* (for example,
 after preprocessing the data using ``fmriprep``, which creates a .tsv file containing nuisance signals).
 
+[![DOI](https://zenodo.org/badge/4033784/arielletambini/denoiser.svg)](https://zenodo.org/badge/latestdoi/4033784/arielletambini/denoiser)
+
