@@ -9,3 +9,4 @@ patsy
 seaborn
 jinja2
 nitime
+nipype
