@@ -1,0 +1,23 @@
+{
+  "title": "Denoiser: A nuisance regression tool for fMRI BOLD data",
+  "description": "<p>Denoiser is a tool for removing sources of noise from and performing temporal filtering of functional MRI data. It also provides visualization of the content of nuisance signals (including motion information, if provided), allowing the user to get a quick sense of data quality before and after noise removal.</p>",
+  "creators": [
+    {
+      "affiliation": "Department of Neurobiology and Behavior, Center for the Neurobiology of Learning and Memory, University of California Irvine",
+      "name": "Tambini, Arielle",
+      "orcid": "0000-0001-9200-9165"
+    },
+    {
+      "affiliation": "Department of Psychology, Stanford University",
+      "name": "Gorgolewski, Krzysztof J.",
+      "orcid": "0000-0003-3321-7583"
+    }
+  ],
+  "keywords": [
+    "neuroimaging",
+    "preprocessing",
+    "fMRI"
+  ],
+  "license": "Apache-2.0",
+  "upload_type": "software"
+}
