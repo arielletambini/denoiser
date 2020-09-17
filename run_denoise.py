@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-from nistats import regression
-from nistats import reporting
-from nistats.design_matrix import make_first_level_design_matrix
+from nilearn.glm import regression
+from nilearn import reporting
+from nilearn.glm.first_level.design_matrix import make_first_level_design_matrix
 import nibabel as nb
 import numpy as np
 import os, pandas, sys, pdb, argparse, copy, scipy, jinja2
@@ -14,7 +14,7 @@ import matplotlib
 import pylab as plt
 import seaborn as sns
 from nilearn._utils.niimg import load_niimg
-from niworkflows.nipype.algorithms import confounds as nac
+from nipype.algorithms import confounds as nac
 
 parser = argparse.ArgumentParser(description='Function for performing nuisance regression. Saves resulting output '
                                              'nifti file, information about nuisance regressors and motion (html '
@@ -56,10 +56,10 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     file_base = img_name[0:img_name.find('.')]
     save_img_file = pjoin(out_path, file_base + \
                           '_NR' + nii_ext)
-    data = img.get_data()
+    data = img.get_fdata()
     df_orig = pandas.read_csv(tsv_file, '\t', na_values='n/a')
     df = copy.deepcopy(df_orig)
-    Ntrs = df.as_matrix().shape[0]
+    Ntrs = df.values.shape[0]
     print('# of TRs: ' + str(Ntrs))
     assert (Ntrs == data.shape[len(data.shape) - 1])
 
@@ -84,8 +84,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     if hp_filter:
         hp_filter = float(hp_filter)
         assert (hp_filter > 0)
-        period_cutoff = 1. / hp_filter
-        df = make_first_level_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
+        df = make_first_level_design_matrix(frame_times, high_pass=hp_filter, add_regs=df.values,
                                 add_reg_names=df.columns.tolist())
         # fn adds intercept into dm
 
@@ -96,7 +95,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         df[constant] = 1
         print('No High-pass Filter Applied')
 
-    dm = df.as_matrix()
+    dm = df.values
 
     # prep data
     data = np.reshape(data, (-1, Ntrs))
@@ -107,7 +106,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     model = regression.OLSModel(dm)
     results = model.fit(data.T)
     if not hp_filter:
-        results_orig_resid = copy.deepcopy(results.resid)  # save for rsquared computation
+        results_orig_resid = copy.deepcopy(results.residuals)  # save for rsquared computation
 
     # apply low-pass filter
     if lp_filter:
@@ -119,14 +118,14 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
         temp_img_file = pjoin(out_path, file_base + \
                               '_temp' + nii_ext)
-        temp_img = nb.Nifti1Image(np.reshape(results.resid.T + np.reshape(data_mean, (Nvox, 1)), img.shape).astype('float32'),
+        temp_img = nb.Nifti1Image(np.reshape(results.residuals.T + np.reshape(data_mean, (Nvox, 1)), img.shape).astype('float32'),
                                   img.affine, header=img.header)
         temp_img.to_filename(temp_img_file)
-        results.resid = butterworth(results.resid, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
+        results.residuals = butterworth(results.residuals, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
         print('Low-pass Filter Applied: < ' + str(low_pass) + ' Hz')
 
     # add mean back into data
-    clean_data = results.resid.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
+    clean_data = results.residuals.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
 
     # save out new data file
     print('Saving output file...')
@@ -138,9 +137,9 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     if hp_filter:
         # first remove low-frequency information from data
         hp_cols.append(constant)
-        model_first = regression.OLSModel(df[hp_cols].as_matrix())
+        model_first = regression.OLSModel(df[hp_cols].values)
         results_first = model_first.fit(data.T)
-        results_first_resid = copy.deepcopy(results_first.resid)
+        results_first_resid = copy.deepcopy(results_first.residuals)
         del results_first, model_first
 
         # compute sst - borrowed from matlab
@@ -149,11 +148,11 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
         # now regress out 'true' confounds to estimate their Rsquared
         nr_cols = [col for col in df.columns if 'drift' not in col]
-        model_second = regression.OLSModel(df[nr_cols].as_matrix())
+        model_second = regression.OLSModel(df[nr_cols].values)
         results_second = model_second.fit(results_first_resid)
 
         # compute sse - borrowed from matlab
-        sse = np.square(np.linalg.norm(results_second.resid, axis=0))
+        sse = np.square(np.linalg.norm(results_second.residuals, axis=0))
 
         del results_second, model_second, results_first_resid
 
@@ -168,7 +167,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         del results_orig_resid
 
     # compute rsquared of nuisance regressors
-    zero_idx = scipy.logical_and(sst == 0, sse == 0)
+    zero_idx = np.logical_and(sst == 0, sse == 0)
     sse[zero_idx] = 1
     sst[zero_idx] = 1  # would be NaNs - become rsquared = 0
     rsquare = 1 - np.true_divide(sse, sst)
@@ -233,7 +232,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
         FD_name = poss_names[fd_idx == True]
         if sum(df_orig[FD_name].isnull()) > 0:
             df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
-        y = df_orig[FD_name].as_matrix()
+        y = df_orig[FD_name].values
         Nremove = []
         sc_idx = []
         for thr_idx, thr in enumerate(FD_thr):
