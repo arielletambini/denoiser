@@ -213,7 +213,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     tr_label = 'TR (Volume #)'
     fig, ax = plt.subplots(figsize=(curr_sz - 4.1, def_img_size))
     x_scale_html = ((curr_sz - 4.1) / def_img_size) * 890
-    reporting.plot_design_matrix(df, ax=ax)
+    plotting.plot_design_matrix(df, ax=ax)
     ax.set_title('Nuisance Design Matrix', fontsize=fontsize_title)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right', fontsize=fontsize)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=fontsize)
