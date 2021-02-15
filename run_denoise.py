@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from nilearn.glm import regression
-from nilearn import reporting
 from nilearn.glm.first_level.design_matrix import make_first_level_design_matrix
 import nibabel as nb
 import numpy as np
@@ -226,10 +225,10 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
 
     # FD timeseries plot
     FD = 'FD'
-    poss_names = ['FramewiseDisplacement', FD, 'framewisedisplacement', 'fd']
+    poss_names = ['FramewiseDisplacement', FD, 'framewisedisplacement', 'fd', 'framewise_displacement']
     fd_idx = [df_orig.columns.__contains__(i) for i in poss_names]
     if np.sum(fd_idx) > 0:
-        FD_name = poss_names[fd_idx == True]
+        FD_name = np.array(poss_names)[fd_idx][0] #poss_names[fd_idx == True]
         if sum(df_orig[FD_name].isnull()) > 0:
             df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
         y = df_orig[FD_name].values
