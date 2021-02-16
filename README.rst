@@ -19,6 +19,10 @@ after preprocessing the data using ``fmriprep``, which creates a .tsv file conta
    :target: https://zenodo.org/badge/latestdoi/4033784/arielletambini/denoiser
 
 
+
+
+
+
 For instructions on how to run, type: python run_denoise.py -h
 
 usage: run_denoise.py [-h] [--col_names COL_NAMES [COL_NAMES ...]] [--hp_filter HP_FILTER] [--lp_filter LP_FILTER] [--out_figure_path OUT_FIGURE_PATH] img_file tsv_file out_path
