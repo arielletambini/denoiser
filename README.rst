@@ -21,8 +21,7 @@ after preprocessing the data using ``fmriprep``, which creates a .tsv file conta
 
 For instructions on how to run, type: python run_denoise.py -h
 
-usage: run_denoise.py [-h] [--col_names COL_NAMES [COL_NAMES ...]] [--hp_filter HP_FILTER] [--lp_filter LP_FILTER] [--out_figure_path OUT_FIGURE_PATH]
-                      img_file tsv_file out_path
+usage: run_denoise.py [-h] [--col_names COL_NAMES [COL_NAMES ...]] [--hp_filter HP_FILTER] [--lp_filter LP_FILTER] [--out_figure_path OUT_FIGURE_PATH] img_file tsv_file out_path
 
 Function for performing nuisance regression. Saves resulting output nifti file, information about nuisance regressors and motion (html report), and outputs
 nibabel object containing clean data
