@@ -22,7 +22,7 @@ parser.add_argument('--fd_col_name',
                     help='Column in tsv_file that contains Framewise Displacement values.')
 parser.add_argument('--FD_thr',
                     help='Set a custom FD threshold (in mm) for use when counting high-motion volumes.')
-parser.add_argument('--bids',
+parser.add_argument('--bids', action='store_true'
                     help='If set, denoiser will expect inputs to follow the BIDS derivaties spec,\
                             and Denoiser outputs will also follow the spec (and include required JSON files).')
 parser.add_argument('--strategy_name',
