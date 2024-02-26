@@ -1,25 +1,34 @@
 def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_filter=None, out_figure_path=None,
         fd_col_name=None, FD_thr=None, bids=None, strategy_name=None, template_file=None, sink_link=None):
 
-    from nistats import regression
-    from nistats import reporting
-    from nistats.design_matrix import make_first_level_design_matrix
+    import matplotlib
+    matplotlib.use('agg')
+    print("backend: " + matplotlib.get_backend())
+
     import nibabel as nb
     import numpy as np
-    import os, pandas, sys, pdb, copy, scipy, jinja2, json
+    import os, pandas, copy, scipy, jinja2, json
     from os.path import join as pjoin
-    from nilearn import plotting
+    from nilearn import plotting, glm
     from nilearn.signal import butterworth
     from nilearn.input_data import NiftiMasker
+    from nilearn.glm.first_level import make_first_level_design_matrix
     from denoiser.plotting import plot_carpet
 
-    import matplotlib
     import pylab as plt
     import seaborn as sns
     from nilearn._utils.niimg import load_niimg
     from nipype.algorithms import confounds as nac
 
-    assert os.path.exists(out_path), "ERROR! out_path must be an existing directory"
+    # If the specified output directory doesn't exist, try to create it.
+    if os.path.isdir(out_path):
+        pass
+    elif os.path.isdir(os.path.abspath(os.path.join(out_path, os.pardir))): # If the parent dir of out_path exists.
+        os.mkdir(out_path)
+        print("The specified output directory does not exist. Creating this directory")
+    else:
+        assert os.path.exists(out_path), "ERROR! out_path must be an existing directory or point to a path within an existing directory"
+
 
     if bids:
         assert strategy_name, "If bids=True, you must provide a strategy name!"
@@ -95,7 +104,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     Nvox = len(data_mean)
 
     # setup and run regression
-    model = regression.OLSModel(dm)
+    model = glm.OLSModel(dm)
     results = model.fit(data.T)
     if not hp_filter:
         results_orig_resid = copy.deepcopy(results.resid)  # save for rsquared computation
@@ -142,7 +151,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     if hp_filter:
         # first remove low-frequency information from data
         hp_cols.append(constant)
-        model_first = regression.OLSModel(df[hp_cols].as_matrix())
+        model_first = glm.OLSModel(df[hp_cols].as_matrix())
         results_first = model_first.fit(data.T)
         results_first_resid = copy.deepcopy(results_first.resid)
         del results_first, model_first
@@ -153,7 +162,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
 
         # now regress out 'true' confounds to estimate their Rsquared
         nr_cols = [col for col in df.columns if 'drift' not in col]
-        model_second = regression.OLSModel(df[nr_cols].as_matrix())
+        model_second = glm.OLSModel(df[nr_cols].as_matrix())
         results_second = model_second.fit(results_first_resid)
 
         # compute sse - borrowed from matlab
@@ -184,7 +193,8 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     def_img_size = 8
 
     if not out_figure_path:
-        out_figure_path = save_img_file[0:save_img_file.find('.')] + '_figures'
+        out_figure_path = pjoin(out_path, file_base+'_report')
+
 
     if not os.path.isdir(out_figure_path):
         os.mkdir(out_figure_path)
@@ -218,7 +228,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     tr_label = 'TR (Volume #)'
     fig, ax = plt.subplots(figsize=(curr_sz - 4.1, def_img_size))
     x_scale_html = ((curr_sz - 4.1) / def_img_size) * 890
-    reporting.plot_design_matrix(df, ax=ax)
+    plotting.plot_design_matrix(df, ax=ax)
     ax.set_title('Nuisance Design Matrix', fontsize=fontsize_title)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right', fontsize=fontsize)
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=fontsize)
