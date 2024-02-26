@@ -55,3 +55,4 @@ sink_link = args.sink_link
 if __name__ == "__main__":
     denoise(img_file, tsv_file, out_path, col_names, hp_filter, lp_filter,
             out_figure_path, fd_col_name, FD_thr, bids, strategy_name, template_file, sink_link)
+
