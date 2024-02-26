@@ -23,7 +23,7 @@ parser.add_argument('--fd_col_name',
 parser.add_argument('--FD_thr',
                     help='Set a custom FD threshold (in mm) for use when counting high-motion volumes.')
 parser.add_argument('--bids',
-                    help='If set to True, denoiser will expect inputs to follow the BIDS derivaties spec,\
+                    help='If set, denoiser will expect inputs to follow the BIDS derivaties spec,\
                             and Denoiser outputs will also follow the spec (and include required JSON files).')
 parser.add_argument('--strategy_name',
                     help='Required if bids=True. Specify a name for the nuisance cleaning strategy to be\
