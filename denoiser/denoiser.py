@@ -46,8 +46,10 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     if sink_link:
         del sink_link
 
+    print('Attempting to load NIfTI file...')
     # read in files
     img = load_niimg(img_file)
+    print('...Success!')
     # get file info
     img_name = os.path.basename(img.get_filename())
     if bids:
@@ -56,10 +58,11 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     else:
         file_base = img_name[0:img_name.find('.')]
         save_img_file = pjoin(out_path, file_base + '_NR' + nii_ext)
-    data = img.get_data()
-    df_orig = pandas.read_csv(tsv_file, '\t', na_values='n/a')
+    print('Loading BOLD data for processing...')
+    data = img.get_fdata()
+    df_orig = pandas.read_csv(tsv_file, sep='\t', na_values='n/a')
     df = copy.deepcopy(df_orig)
-    Ntrs = df.as_matrix().shape[0]
+    Ntrs = df.values.shape[0]
     print('# of TRs: ' + str(Ntrs))
     assert (Ntrs == data.shape[len(data.shape) - 1])
 
@@ -85,7 +88,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
         hp_filter = float(hp_filter)
         assert (hp_filter > 0)
         period_cutoff = 1. / hp_filter
-        df = make_first_level_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.as_matrix(),
+        df = make_first_level_design_matrix(frame_times, period_cut=period_cutoff, add_regs=df.values,
                                 add_reg_names=df.columns.tolist())
         # fn adds intercept into dm
 
@@ -96,18 +99,20 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
         df[constant] = 1
         print('No High-pass Filter Applied')
 
-    dm = df.as_matrix()
+    dm = df.values
 
     # prep data
+    print("Preparing data...")
     data = np.reshape(data, (-1, Ntrs))
     data_mean = np.mean(data, axis=1)
     Nvox = len(data_mean)
 
     # setup and run regression
+    print("Running regression...")
     model = glm.OLSModel(dm)
     results = model.fit(data.T)
     if not hp_filter:
-        results_orig_resid = copy.deepcopy(results.resid)  # save for rsquared computation
+        results_orig_resid = copy.deepcopy(results.residuals)  # save for rsquared computation
 
     # apply low-pass filter
     if lp_filter:
@@ -119,17 +124,17 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
 
         temp_img_file = pjoin(out_path, file_base + \
                               '_temp' + nii_ext)
-        temp_img = nb.Nifti1Image(np.reshape(results.resid.T + np.reshape(data_mean, (Nvox, 1)), img.shape).astype('float32'),
+        temp_img = nb.Nifti1Image(np.reshape(results.residuals.T + np.reshape(data_mean, (Nvox, 1)), img.shape).astype('float32'),
                                   img.affine, header=img.header)
         temp_img.to_filename(temp_img_file)
-        results.resid = butterworth(results.resid, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
+        results.residuals = butterworth(results.residuals, sampling_rate=Fs, low_pass=low_pass, high_pass=None)
         print('Low-pass Filter Applied: < ' + str(low_pass) + ' Hz')
 
     # add mean back into data
-    clean_data = results.resid.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
+    clean_data = results.residuals.T + np.reshape(data_mean, (Nvox, 1))  # add mean back into residuals
 
     # save out new data file
-    print('Saving output file...')
+    print('Saving denoised image...')
     clean_data = np.reshape(clean_data, img.shape).astype('float32')
     new_img = nb.Nifti1Image(clean_data, img.affine, header=img.header)
     new_img.to_filename(save_img_file)
@@ -148,12 +153,13 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
                 json.dump(bids_dict, outfile)
 
     ######### generate Rsquared map for confounds only
+    print("Generating confounds R-squared map...")
     if hp_filter:
         # first remove low-frequency information from data
         hp_cols.append(constant)
-        model_first = glm.OLSModel(df[hp_cols].as_matrix())
+        model_first = glm.OLSModel(df[hp_cols].values)
         results_first = model_first.fit(data.T)
-        results_first_resid = copy.deepcopy(results_first.resid)
+        results_first_resid = copy.deepcopy(results_first.residuals)
         del results_first, model_first
 
         # compute sst - borrowed from matlab
@@ -162,11 +168,11 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
 
         # now regress out 'true' confounds to estimate their Rsquared
         nr_cols = [col for col in df.columns if 'drift' not in col]
-        model_second = glm.OLSModel(df[nr_cols].as_matrix())
+        model_second = glm.OLSModel(df[nr_cols].values)
         results_second = model_second.fit(results_first_resid)
 
         # compute sse - borrowed from matlab
-        sse = np.square(np.linalg.norm(results_second.resid, axis=0))
+        sse = np.square(np.linalg.norm(results_second.residuals, axis=0))
 
         del results_second, model_second, results_first_resid
 
@@ -181,7 +187,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
         del results_orig_resid
 
     # compute rsquared of nuisance regressors
-    zero_idx = scipy.logical_and(sst == 0, sse == 0)
+    zero_idx = np.logical_and(sst == 0, sse == 0)
     sse[zero_idx] = 1
     sst[zero_idx] = 1  # would be NaNs - become rsquared = 0
     rsquare = 1 - np.true_divide(sse, sst)
@@ -199,16 +205,17 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     if not os.path.isdir(out_figure_path):
         os.mkdir(out_figure_path)
     png_append = '_' + img_name[0:img_name.find('.')] + '.png'
-    print('Output directory: ' + out_figure_path)
+    print('Output directory for figures: ' + out_figure_path)
 
     # DM corr matrix
+    print("Plotting regressor correlation matrix...")
     cm = df[df.columns[0:-1]].corr()
     curr_sz = copy.deepcopy(def_img_size)
     if cm.shape[0] > def_img_size:
         curr_sz = curr_sz + ((cm.shape[0] - curr_sz) * .3)
     mtx_scale = curr_sz * 100
 
-    mask = np.zeros_like(cm, dtype=np.bool)
+    mask = np.zeros_like(cm, dtype='bool')
     mask[np.triu_indices_from(mask)] = True
 
     fig, ax = plt.subplots(figsize=(curr_sz, curr_sz))
@@ -225,6 +232,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     del fig, ax
 
     # DM of Nuisance Regressors (all)
+    print("Plotting design matrix...")
     tr_label = 'TR (Volume #)'
     fig, ax = plt.subplots(figsize=(curr_sz - 4.1, def_img_size))
     x_scale_html = ((curr_sz - 4.1) / def_img_size) * 890
@@ -240,6 +248,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     del fig, ax
 
     # FD timeseries plot
+    print("Plotting FD time series...")
     FD = 'FD' 
     try: 
         if fd_col_name:
@@ -254,7 +263,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
 
         if sum(df_orig[FD_name].isnull()) > 0:
             df_orig[FD_name] = df_orig[FD_name].fillna(np.mean(df_orig[FD_name]))
-        y = df_orig[FD_name].as_matrix()
+        y = df_orig[FD_name].values
         Nremove = []
         sc_idx = []
         for thr_idx, thr in enumerate(FD_thr):
@@ -308,7 +317,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
         pass
     
     # Carpet and DVARS plots - before & after nuisance regression
-
+    print("Preparing carpet plots...")
     # need to create mask file to input to DVARS function
     mask_file = pjoin(out_figure_path, 'mask_temp.nii.gz')
     nifti_masker = NiftiMasker(mask_strategy='epi', standardize=False)
@@ -342,6 +351,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
         dvars.append(np.hstack((temp.mean(), temp)))
         del temp
 
+    print("Plotting carpets...")
     small_sz = 2
     fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size + ((Ncarpet - 2) * 1)))
     row_used = 0
@@ -411,6 +421,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
 
     # Display T-stat maps for nuisance regressors
     # create mean img
+    print("Plotting T-stat maps for each regressor...")
     img_size = (img.shape[0], img.shape[1], img.shape[2])
     mean_img = nb.Nifti1Image(np.reshape(data_mean, img_size), img.affine)
     mx = []
@@ -442,6 +453,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
             print(title_str + ' map saved')
 
     # Display R-sq map for nuisance regressors
+    print("Plotting nuisance R-squared...")
     m_img = nb.Nifti1Image(np.reshape(rsquare, img_size), img.affine)
     title_str = 'Nuisance Rsq'
     mx = .95 * rsquare.max()
@@ -455,6 +467,7 @@ def denoise(img_file, tsv_file, out_path, col_names=None, hp_filter=None, lp_fil
     print(title_str + ' map saved')
 
     ######### html report
+    print("Generating HTML report...")
     templateLoader = jinja2.FileSystemLoader(searchpath="/")
     templateEnv = jinja2.Environment(loader=templateLoader)
 

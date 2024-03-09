@@ -1,7 +1,7 @@
 import numpy as np
 from nilearn.input_data import NiftiMasker
 from nilearn.signal import clean
-from nilearn._utils.niimg import _safe_get_data
+from nilearn._utils.niimg import safe_get_data
 import matplotlib
 import matplotlib.pyplot as plt
 from nilearn import _utils
@@ -36,7 +36,7 @@ def plot_carpet(img, mask_img=None, detrend=True, output_file=None,
             The title displayed on the figure.
     """
     img_nii = _utils.check_niimg_4d(img, dtype='auto')
-    img_data = _safe_get_data(img_nii, ensure_finite=True)
+    img_data = safe_get_data(img_nii, ensure_finite=True)
 
     # Define TR and number of frames
     tr = img_nii.header.get_zooms()[-1]
@@ -45,10 +45,10 @@ def plot_carpet(img, mask_img=None, detrend=True, output_file=None,
     if not mask_img:
         nifti_masker = NiftiMasker(mask_strategy='epi', standardize=False)
         nifti_masker.fit(img_nii)
-        mask_data = nifti_masker.mask_img_.get_data().astype(bool)
+        mask_data = nifti_masker.mask_img_.get_fdata().astype(bool)
     else:
         mask_nii = _utils.check_niimg_3d(mask_img, dtype='auto')
-        mask_data = _safe_get_data(mask_nii, ensure_finite=True)
+        mask_data = safe_get_data(mask_nii, ensure_finite=True)
 
     data = img_data[mask_data > 0].reshape(-1, ntsteps)
     # Detrend data
