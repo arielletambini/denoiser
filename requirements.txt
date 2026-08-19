@@ -1,12 +1,13 @@
-nilearn==0.7.0
-nibabel
-numpy
-pandas
-matplotlib
-scipy
-sklearn
-patsy
-seaborn
-jinja2
-nitime
-nipype
+# Verified working versions (Python 3.8.13)
+nilearn==0.9.1
+nibabel==3.2.2
+numpy==1.24.4
+pandas==1.4.4
+matplotlib==3.5.2
+scipy==1.7.3
+scikit-learn==1.1.3
+patsy==0.5.2
+seaborn==0.13.1
+Jinja2==3.1.2
+nitime==0.10.1
+nipype==1.8.1
