@@ -313,9 +313,13 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     dvars = []
     print('Computing dvars...')
     for in_file in img_files:
-        temp = nac.compute_dvars(in_file=in_file, in_mask=mask_file)[1]
+        dv_out = nac.ComputeDVARS(in_file=in_file, in_mask=mask_file).run()
+        dv_out_file = dv_out.outputs.out_std
+        temp = np.genfromtxt(dv_out_file)
+        # temp = nac.compute_dvars(in_file=in_file, in_mask=mask_file)[1]
         dvars.append(np.hstack((temp.mean(), temp)))
         del temp
+        os.system('rm ' + dv_out_file)
 
     small_sz = 2
     fig = plt.figure(figsize=(def_img_size * 1.5, def_img_size + ((Ncarpet - 2) * 1)))
@@ -384,6 +388,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     img_size = (img.shape[0], img.shape[1], img.shape[2])
     mean_img = nb.Nifti1Image(np.reshape(data_mean, img_size), img.affine)
     mx = []
+    # pdb.set_trace()
     for idx, col in enumerate(df.columns):
         if not 'drift' in col and not constant in col:
             con_vector = np.zeros((1, df.shape[1]))
@@ -394,34 +399,34 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
     t_png = 'Tstat_'
     file_tstat = []
     for idx, col in enumerate(df.columns):
-        if not 'drift' in col and not constant in col:
+        if not 'drift' in col and not constant in col and not 'non_steady_state' in col:
             con_vector = np.zeros((1, df.shape[1]))
             con_vector[0, idx] = 1
             con = results.Tcontrast(con_vector)
             m_img = nb.Nifti1Image(np.reshape(con, img_size), img.affine)
 
             title_str = col + ' Tstat'
-            fig = plotting.plot_stat_map(m_img, mean_img, threshold=3, colorbar=True, display_mode='z', vmax=mx,
-                                         title=title_str,
-                                         cut_coords=7)
             file_temp = t_png + col + png_append
-            fig.savefig(pjoin(out_figure_path, file_temp))
+            plotting.plot_stat_map(m_img, bg_img=mean_img, threshold=1, colorbar=True, 
+                                        display_mode='z', vmax=mx, title=title_str,
+                                        cut_coords=7, output_file=pjoin(out_figure_path, file_temp))
+            # pdb.set_trace()
+            # fig.savefig()
             file_tstat.append({'name': col, 'file': file_temp})
             plt.close()
-            del fig, file_temp
+            del file_temp
             print(title_str + ' map saved')
 
     # Display R-sq map for nuisance regressors
     m_img = nb.Nifti1Image(np.reshape(rsquare, img_size), img.affine)
     title_str = 'Nuisance Rsq'
     mx = .95 * rsquare.max()
-    fig = plotting.plot_stat_map(m_img, mean_img, threshold=.2, colorbar=True, display_mode='z', vmax=mx,
-                                 title=title_str,
-                                 cut_coords=7)
     file_rsq_map = 'Rsquared' + png_append
-    fig.savefig(pjoin(out_figure_path, file_rsq_map))
+    # pdb.set_trace()
+    plotting.plot_stat_map(m_img, bg_img=mean_img, threshold=.3, colorbar=True, 
+                                display_mode='z', vmax=mx, title=title_str,
+                                cut_coords=7, output_file=pjoin(out_figure_path, file_rsq_map))
     plt.close()
-    del fig
     print(title_str + ' map saved')
 
     ######### html report
@@ -447,6 +452,7 @@ def denoise(img_file, tsv_file, out_path, col_names=False, hp_filter=False, lp_f
                     }
 
     TEMPLATE_FILE = pjoin(os.getcwd(), "report_template.html")
+    # pdb.set_trace()
     template = templateEnv.get_template(TEMPLATE_FILE)
 
     outputText = template.render(templateVars)
