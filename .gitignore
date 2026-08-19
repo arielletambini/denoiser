@@ -100,3 +100,7 @@ ENV/
 # mypy
 .mypy_cache/
 .idea/
+
+# Archived local script drafts / example output data
+old_versions/
+*.tsv
