@@ -104,3 +104,8 @@ ENV/
 # Archived local script drafts / example output data
 old_versions/
 *.tsv
+
+# Local compat copy for /projects/TIKTOK/analysis/arielle/denoise.py's glob
+# ('*denoise_light_v3.py') -- kept identical to run_denoise_light.py, not
+# tracked separately to avoid drift between two copies of the same code.
+run_denoise_light_v3.py
